@@ -18,11 +18,15 @@ public class Player : MonoBehaviour
 
     //public StateMachine stateMachine;
 
+    bool haveBall = true;
 
     public Seek seek;
     public Arrive arrive;
     public FollowPath followPath;
 
+    GameObject Go;
+
+    public bool returned;
 
     //public State[] states;
 
@@ -35,26 +39,51 @@ public class Player : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetKey(KeyCode.Space)&&!overHeat)
+        if (haveBall)
         {
-            power += 0.5f * Time.deltaTime;
-            if(power > 3)
+            if (Input.GetKey(KeyCode.Space) && !overHeat)
             {
+                power += 0.5f * Time.deltaTime;
+                if (power > 3)
+                {
+                    haveBall = false;
+                    if (power > 1) Throw(power);
+                    power = 1;
+                    overHeat = true;
+                }
+            }
+
+            if (Input.GetKeyUp(KeyCode.Space))
+            {
+                haveBall = false;
+                overHeat = false;
                 if (power > 1) Throw(power);
                 power = 1;
-                overHeat = true;
             }
+
+
+
+            image.fillAmount = (power - 1) / 2;
+
         }
 
-        if (Input.GetKeyUp(KeyCode.Space))
+        if (Go == null || !returned) return;
+        if(Vector3.Distance(Go.transform.position, transform.position) < 5f)
         {
-            overHeat = false;
-            if (power > 1) Throw(power);
-            power = 1;
+            Destroy(Go);
+            returned = false;
+            haveBall = true;
         }
 
 
-        image.fillAmount = (power - 1) / 2;
+    }
+
+    IEnumerator AntiSoftLock()
+    {
+        yield return new WaitForSeconds(10);
+
+        Wait();
+
     }
 
 
@@ -62,8 +91,10 @@ public class Player : MonoBehaviour
 
     void Throw(float pow)
     {
-        GameObject Go = Instantiate(ball, transform.position, transform.rotation);
+        haveBall = false;
+        Go = Instantiate(ball, transform.position, transform.rotation);
         Go.GetComponent<Rigidbody>().AddRelativeForce(Vector3.forward * force*pow, ForceMode.Impulse);
+        StartCoroutine(AntiSoftLock());
 
         //if(stateMachine.currentState == null)
         //{
@@ -71,5 +102,23 @@ public class Player : MonoBehaviour
         //}
         seek.GetBall(Go);
 
+    }
+
+    public void Return()
+    {
+        seek.enabled = false;
+        arrive.enabled = true;
+
+        
+    }
+
+    public void Wait()
+    {
+        StopAllCoroutines();
+        returned = true;
+        seek.enabled = true;
+        arrive.enabled = false;
+        seek.gameObject.GetComponent<Rigidbody>().velocity = Vector3.zero;
+        //seek.GetBall(gameObject);
     }
 }
